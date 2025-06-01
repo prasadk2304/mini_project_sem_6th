@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plant Disease Detection</title>
+ <style>
+    * {
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: url('/static/bag.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    h1.main-heading {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 32px;
+      color: #2c3e50;
+    }
+
+    /* Upload container */
+    .upload-container {
+      max-width: 450px;
+      margin: 50px auto;
+      text-align: center;
+      /* background: #ffffff; */
+      background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+      padding: 30px 20px;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .upload-container h2 {
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .drop-area {
+      border-radius: 10px;
+      padding: 40px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .drop-area p {
+      color: #555;
+      font-size: 16px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    button[type="submit"] {
+      margin-top: 15px;
+      background-color: #27ae60;
+      border: none;
+      padding: 14px 30px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #219150;
+    }
+
+    .preview img {
+      margin-top: 20px;
+      width: 100%;
+      max-height: 250px;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #result {
+      max-width: 700px;
+      margin: 40px auto;
+    }
+
+    .result-box {
+      background-color: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.1);
+      padding: 25px 30px;
+      margin-bottom: 20px;
+    }
+
+    .result-box h3 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .result-box p,
+    .result-box li {
+      color: #444;
+      line-height: 1.6;
+    }
+
+    .result-box ul {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    #downloadPdfBtn {
+      margin-top: 20px;
+      background-color: #34495e;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      .upload-container, #result {
+        margin: 20px 10px;
+        padding: 20px;
+      }
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <h1 class="main-heading">🌿 Plant Disease Detection</h1>
+
+  <div class="upload-container">
+    <h2>Upload Plant Leaf Image</h2>
+    <form id="uploadForm">
+      <label class="drop-area" for="imageInput">
+        <p>📁 Drag & Drop or Click to Upload Image</p>
+        <input type="file" id="imageInput" name="file" accept="image/*" required>
+      </label>
+      <button type="submit">Predict</button>
+    </form>
+    <div class="preview" id="previewContainer"></div>
+  </div>
+
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const imageInput = document.getElementById('imageInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const resultDiv = document.getElementById('result');
+
+    imageInput.addEventListener('change', () => {
+      previewContainer.innerHTML = '';
+      if (imageInput.files.length > 0) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(imageInput.files[0]);
+        previewContainer.appendChild(img);
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!imageInput.files.length) return alert('Please upload an image.');
+
+      const formData = new FormData();
+      formData.append('file', imageInput.files[0]);
+
+      resultDiv.innerHTML = "⏳ Loading prediction...";
+
+      try {
+        const response = await fetch('/product', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          resultDiv.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+          return;
+        }
+
+        resultDiv.innerHTML = `
+          <div class="result-box">
+            <h3>Prediction Summary</h3>
+            <p><strong>Class:</strong> ${data.class}</p>
+            <p><strong>True Class:</strong> ${data['true class']}</p>
+            <p><strong>Model Accuracy:</strong> ${data.model_accuracy.toFixed(2)}%</p>
+          </div>
+          <div class="result-box">
+            <h3>Disease Information</h3>
+            <p><strong>Description:</strong> ${data.description}</p>
+            <p><strong>Prevention:</strong> <ul>${data.prevention.map(i => `<li>${i}</li>`).join('')}</ul></p>
+            <p><strong>Treatment:</strong> <ul>${data.treatment.map(i => `<li>${i}</li>`).join('')}</ul></p>
+            <p><strong>Solutions:</strong> <ul>${data.Solutions.map(i => `<li>${i}</li>`).join('')}</ul></p>
+            <button id="downloadPdfBtn">Download PDF</button>
+          </div>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<p style="color:red;">Something went wrong.</p>`;
+        console.error(err);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (e.target && e.target.id === 'downloadPdfBtn') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const text = document.getElementById('result').innerText;
+        const lines = doc.splitTextToSize(text, 180);
+        doc.text(lines, 10, 20);
+        doc.save('plant_disease_report.pdf');
+      }
+    });
+  </script>
+</body>
+</html>
